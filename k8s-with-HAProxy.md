@@ -1,4 +1,4 @@
-🚀 Step-by-Step Guide to Deploying a Kubernetes Cluster on Ubuntu with HAProxy
+# 🚀 Step-by-Step Guide to Deploying a Kubernetes Cluster on Ubuntu with HAProxy
 
 Welcome to the guide for setting up a Kubernetes cluster with an HAProxy load balancer! This document will walk you through the steps to configure HAProxy and ensure proper resolution of the API server address.
 ```Tested on Ubuntu 20.04, 22.04 and 24.04 ✅```
