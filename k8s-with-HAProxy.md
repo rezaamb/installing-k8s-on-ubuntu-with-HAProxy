@@ -1,31 +1,34 @@
 🚀 Step-by-Step Guide to Deploying a Kubernetes Cluster on Ubuntu with HAProxy
 
 Welcome to the guide for setting up a Kubernetes cluster with an HAProxy load balancer! This document will walk you through the steps to configure HAProxy and ensure proper resolution of the API server address.
-Tested on Ubuntu 20.04, 22.04 and 24.04 ✅
+```Tested on Ubuntu 20.04, 22.04 and 24.04 ✅```
 
 This guide has been successfully tested on Ubuntu 20.04, Ubuntu 22.04 and Ubuntu 24.04, ensuring compatibility and smooth execution of all steps.
 📝 Introduction
 
 Kubernetes is an open-source container orchestration system for automating software deployment, scaling, and management. Originally designed by Google, the project is now maintained by a worldwide community of contributors, and the trademark is held by the Cloud Native Computing Foundation.
 Let's proceed with the installation step by step ✔️
+
 1️⃣ Disable Swap Memory 🛑
 
-Kubernetes schedules work based on the understanding of available resources. If workloads start using swap, it can become difficult for Kubernetes to make accurate scheduling decisions. Therefore, it’s recommended to disable swap before installing Kubernetes. Open the /etc/fstab file with a text editor. You can use nano, vim, or any other text editor you are comfortable with.
-🔹 There are 2 ways to disable swap:
-1.1. First way:
+Kubernetes schedules work based on the understanding of available resources. If workloads start using swap, it can become difficult for Kubernetes to make accurate scheduling decisions. Therefore, it’s recommended to disable swap before installing Kubernetes. Open the ```/etc/fstab``` file with a text editor. You can use nano, vim, or any other text editor you are comfortable with.
 
+🔹 There are 2 ways to disable swap:
+
+1.1. First way:
+```bash
 sudo swapoff -a
 sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
-
+```
 1.2. Second way:
-
+```bash
 sudo vim /etc/fstab
-
+```
 Look for the line that references the swap file. It will usually look something like this:
 
 /swapfile          none          swap          sw          0          0
 
-Delete this line, then reboot the system.
+#Delete this line, then reboot the system.
 💡 Note:
 
 To allow kubelet to work properly, we need to disable swap on both machines (Master and Worker nodes).
