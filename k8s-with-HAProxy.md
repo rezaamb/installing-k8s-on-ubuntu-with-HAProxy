@@ -28,61 +28,62 @@ Look for the line that references the swap file. It will usually look something 
 
 /swapfile          none          swap          sw          0          0
 
-#Delete this line, then reboot the system.
+Delete this line, then reboot the system.
 💡 Note:
 
 To allow kubelet to work properly, we need to disable swap on both machines (Master and Worker nodes).
+
 2️⃣ Set up the IPv4 Bridge Networking on All Nodes 🌉
 
 To configure the IPv4 bridge on all nodes, execute the following commands on each node.
 🔹 Load the br_netfilter module required for networking:
-
+```bash
 cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
 overlay
 br_netfilter
 EOF
 sudo modprobe overlay
 sudo modprobe br_netfilter
-
+```
 To allow iptables to see bridged traffic, as required by Kubernetes, we need to set the values of certain fields to 1.
 🔹 Set sysctl parameters to allow iptables to see bridged traffic:
-
+```bash
 cat <<EOF | sudo tee /etc/sysctl.d/kubernetes.conf
 net.bridge.bridge-nf-call-iptables = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward = 1
 EOF
-
+```
 🔹 Apply sysctl parameters without reboot:
-
+```bash
 sudo sysctl --system
-
+```
 3️⃣ Install Container Runtime (Containerd) 🐳
 
 Kubernetes requires a container runtime to manage containers.
 🔹 Install containerd:
-
+```bash
 sudo apt install containerd -y
-
+```
 🔹 Set up the default configuration file:
-
+```bash
 sudo mkdir -p /etc/containerd
 sudo containerd config default | sudo tee /etc/containerd/config.toml
-
+```
 🔹 Modify the containerd configuration file:
 
 Edit the following file:
-
+```bash
 sudo vim /etc/containerd/config.toml
-
-Search for the section in the file that starts with plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options and locate the SystemdCgroup setting. Change SystemdCgroup=false to true:
-
+```
+Search for the section in the file that starts with plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options and locate the SystemdCgroup setting. Change ```SystemdCgroup=false``` to ```true```:
+```
 SystemdCgroup = true
-
+```
 🔹 Restart containerd to apply changes:
-
+```bash
 sudo systemctl restart containerd
-
+```
 4️⃣ Install Kubernetes Tools (kubeadm, kubelet, kubectl) 🛠️
 
 Let’s install kubelet, kubeadm, and kubectl on each node to create a Kubernetes cluster. These components are essential for managing and operating a Kubernetes cluster.
@@ -91,11 +92,13 @@ Let’s install kubelet, kubeadm, and kubectl on each node to create a Kubernete
 🔸 Kubectl : The command-line utility to interact with your cluster.
 ⚠️ These instructions are for Kubernetes v1.33.
 4.1. Update the apt package index and install dependencies:
-
+```bash
 sudo apt-get update
+```
 # apt-transport-https may be a dummy package; if so, you can skip that package
+```bash
 sudo apt-get install -y apt-transport-https ca-certificates curl gpg
-
+```
 4.2. Download the public signing key for Kubernetes:
 
 # If the directory `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
