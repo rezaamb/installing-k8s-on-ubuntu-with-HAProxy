@@ -393,4 +393,4 @@ This setup ensures that:
 
 Using port 8443 for HAProxy instead of port 6443 is a best practice that ensures a clean, scalable, and secure architecture for your Kubernetes cluster. It avoids conflicts, simplifies management, and provides a clear separation of responsibilities between HAProxy and the Kubernetes API server. 🚀
 Author ✍️
-Created by Ali Rahmati. If you find this repository helpful, feel free to fork it or contribute!
+Created by Reza BND. If you find this repository helpful, feel free to fork it or contribute!
