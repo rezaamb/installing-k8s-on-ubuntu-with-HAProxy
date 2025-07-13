@@ -85,12 +85,17 @@ SystemdCgroup = true
 sudo systemctl restart containerd
 ```
 4️⃣ Install Kubernetes Tools (kubeadm, kubelet, kubectl) 🛠️
-
+---
 Let’s install kubelet, kubeadm, and kubectl on each node to create a Kubernetes cluster. These components are essential for managing and operating a Kubernetes cluster.
+---
 🔸 Kubeadm : The command to bootstrap the cluster.
+---
 🔸 Kubelet : The component that runs on all machines in your cluster and starts pods and containers.
+---
 🔸 Kubectl : The command-line utility to interact with your cluster.
+---
 ⚠️ These instructions are for Kubernetes v1.33.
+---
 4.1. Update the apt package index and install dependencies:
 ```bash
 sudo apt-get update
