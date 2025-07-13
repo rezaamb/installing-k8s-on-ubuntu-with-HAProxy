@@ -1,12 +1,14 @@
 # Frontend for Kubernetes API
-```frontend k8s-api
+```
+frontend k8s-api
     bind *:8443 # HAProxy listens on port 8443 for incoming traffic
     mode tcp
     option tcplog
     default_backend k8s-api
 ```
-```
+
 # Backend for Kubernetes API
+```
 backend k8s-api
   mode tcp
   option tcplog
@@ -17,8 +19,10 @@ backend k8s-api
 ```
 
 # Monitoring HAProxy
+```
 frontend stats
   bind *:8404
   stats enable
   stats uri /stats
   stats refresh 10
+```
