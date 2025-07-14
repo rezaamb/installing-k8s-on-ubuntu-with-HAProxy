@@ -1,12 +1,15 @@
 # 🚀🚀 راهنمای گام‌به‌گام برای استقرار یک خوشه Kubernetes روی Ubuntu با HAProxy
 
 به راهنما برای راه‌اندازی یک خوشه Kubernetes با HAProxy خوش‌اومدی! این سند شما رو گام به گام راهنمایی می‌کنه تا HAProxy رو تنظیم کرده و آدرس API server رو درست به‌کار بگیری.
+
 ```Tested on Ubuntu 20.04, 22.04 and 24.04 ✅```
 
 ✅ این راهنما روی Ubuntu 20.04، 22.04 و 24.04 تست شده و همه مراحل با این نسخه‌ها سازگار هستند.
+
 📝 مقدمه
 
  کوبرنتیز یک سیستم متن‌باز برای ارکستریشن کانتینر است که کارهای Deployment، مقیاس‌دهی و مدیریت برنامه‌ها رو اتوماتیک می‌کنه. این پروژه توسط گوگل شروع شد و حالا زیر نظر جامعه متن‌باز و Cloud Native Computing Foundation ادامه پیدا می‌کنه.
+ 
 بیاید مرحله به مرحله نصبش کنیم ✔️
 
 
@@ -17,19 +20,24 @@
 🔹 2 روش برای غیرفعال سازی swap هست:
 
 1.1. روش اول:
+
 ```bash
 sudo swapoff -a
 sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 ```
+
 1.2. روش دوم:
 ```bash
 sudo vim /etc/fstab
 ```
+
 داخل فایل خط مشابه زیر رو پیدا کن:
+
 
 /swapfile          none          swap          sw          0          0
 
 و اون خط رو حذف کن، سپس سیستم رو reboot کن.
+
 💡 نکته:
 
 برای proper بودن kubelet، swap باید روی هر دو سرور Master و Worker خاموش بشه.
@@ -37,7 +45,9 @@ sudo vim /etc/fstab
 2️⃣ تنظیم IPv4 Bridge Networking در تمام نودها 🌉
 
 برای مشاهده ترافیک bridged در iptables، یک ماژول و تنظیم sysctl نیاز داریم.
+
 🔹 بارگذاری ماژول‌ها:
+
 ```bash
 cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
 overlay
@@ -46,8 +56,11 @@ EOF
 sudo modprobe overlay
 sudo modprobe br_netfilter
 ```
+
 این دو ماژول برای عملکرد صحیح networking کانتینرها الزامن.
+
 🔹 فعال‌سازی bridged traffic:
+
 ```bash
 cat <<EOF | sudo tee /etc/sysctl.d/kubernetes.conf
 net.bridge.bridge-nf-call-iptables = 1
@@ -55,117 +68,198 @@ net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward = 1
 EOF
 ```
+
 🔹 بارگذاری تنظیمات بدون ریبوت:
+
 ```bash
 sudo sysctl --system
 ```
+
 3️⃣ نصب Container Runtime (Containerd) 🐳
 
-Kubernetes requires a container runtime to manage containers.
+
 🔹 نصب containerd:
+
 ```bash
 sudo apt install containerd -y
 ```
+
 🔹 تنظیم فایل کانفیگ:
+
 ```bash
 sudo mkdir -p /etc/containerd
 sudo containerd config default | sudo tee /etc/containerd/config.toml
 ```
+
 🔹 ویرایش فایل زیر:
 
-Edit the following file:
+
 ```bash
 sudo vim /etc/containerd/config.toml
 ```
+
 در بخش plugins... گزینه SystemdCgroup = false را به true تغییر بده:
+
 ```
 SystemdCgroup = true
 ```
+
 🔹 و برای اعمال تغییرات:
+
 ```bash
 sudo systemctl restart containerd
 ```
+
 4️⃣ نصب ابزارهای Kubernetes (kubeadm, kubelet, kubectl) 🛠️
+
 ---
-Let’s install kubelet, kubeadm, and kubectl on each node to create a Kubernetes cluster. These components are essential for managing and operating a Kubernetes cluster.
+بیایید ابزارهای kubelet، kubeadm و kubectl رو روی هر نود (چه master چه worker) نصب کنیم تا بتونیم یک خوشه (cluster) Kubernetes ایجاد کنیم.
+
+این سه مؤلفه برای مدیریت و کار با کلاستر Kubernetes ضروری هستند.
 ---
-🔸 Kubeadm : The command to bootstrap the cluster.
+🔸 Kubeadm : دستور اصلی برای بوت‌استرپ (راه‌اندازی اولیه) کلاستر.
+
+در واقع kubeadm مسئول ساختن کنترل پلین و تنظیم اولیه‌ی کلاستر هست.
 ---
-🔸 Kubelet : The component that runs on all machines in your cluster and starts pods and containers.
+🔸 Kubelet : سرویسیه که روی تمام ماشین‌های نود اجرا می‌شه و مسئول اجرا و مدیریت پادها و کانتینرها هست.
 ---
-🔸 Kubectl : The command-line utility to interact with your cluster.
+🔸 Kubectl : ابزار خط فرمان برای تعامل با کلاستر.
+با استفاده از kubectl می‌تونی پادها، سرویس‌ها، نودها و بقیه منابع Kubernetes رو بررسی و مدیریت کنی.
 ---
-⚠️ These instructions are for Kubernetes v1.33.
+⚠️ این دستورالعمل‌ها مخصوص نسخه‌ی v1.33 از Kubernetes هستن.
 ---
+
 4.1 بروزرسانی لیست بسته‌ها:
+
 ```bash
 sudo apt-get update
 ```
 # apt-transport-https may be a dummy package; if so, you can skip that package
+
 ```bash
 sudo apt-get install -y apt-transport-https ca-certificates curl gpg
 ```
 4.2 دریافت کلید امضای پکیج Kubernetes:
 
-# If the directory `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
+# اگر پوشه‌ای به نام /etc/apt/keyrings روی سیستم وجود نداشته باشه، باید قبل از اجرای دستور curl اون رو بسازی. 
+```bash
 sudo mkdir -p -m 755 /etc/apt/keyrings
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+```
+💡 یادداشت:
 
-💡 Note:
+ در نسخه‌های قدیمی‌تر از Debian 12 و Ubuntu 22.04، این مسیر /etc/apt/keyrings به‌صورت پیش‌فرض وجود نداره.
+ 
+بنابراین باید قبل از اجرای curl، این دایرکتوری رو با دستور mkdir ایجاد کنید.
 
-In releases older than Debian 12 and Ubuntu 22.04, directory /etc/apt/keyrings does not exist by default, and it should be created before the curl command.
 4.3 افزودن مخزن Kubernetes:
+```bash
 
 # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
 echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+```
 
 4.4 نصب ابزارها:
+```bash
 sudo apt-get update
 sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
-
+```
 4.5 فعال‌سازی kubelet:
+```bash
 sudo systemctl enable --now kubelet
+```
 
 The kubelet is now restarting every few seconds, as it waits in a crashloop for kubeadm to tell it what to do.
 4.6 فعال‌سازی kubelet:
-
+```bash
 sudo systemctl enable kubelet
-
+```
 4.7. 4.7 پیش‌کشیدن ایمیج‌ها:
-
+```bash
 sudo kubeadm config images pull
+```
 4.8 راه‌اندازی خوشه (روی Master):
 💡 ابتدا HAProxy باید تنظیم باشه! ❗️❗️❗️
-
+```bash
 kubeadm init --control-plane-endpoint "apisrv.aranetco.ir:8443" --pod-network-cidr=10.244.0.0/16 --upload-certs
-
+```
 ⚠️ اگر کلاستر کار نکرد برای ریست :
-
+```bash
 sudo kubeadm reset --force
+```
+برای مدیریت کلاستر، باید kubectl رو روی نود مستر پیکربندی کنی.
+اول باید یه دایرکتوری به اسم .kube توی پوشه‌ی Home بسازی.
+بعد، فایل پیکربندی ادمین کلاستر (که به صورت پیش‌فرض توی /etc/kubernetes/admin.conf قرار داره) رو کپی کنی داخل این پوشه‌ی شخصی خودت.
+و در نهایت، مالکیت اون فایل رو به یوزر فعلی بده تا بتونی بدون sudo از kubectl استفاده کنی:
 
-To manage the cluster, configure kubectl on the master node. Create the .kube directory in your home directory and copy the cluster's admin configuration to your personal .kube directory. Then, change the ownership of the copied configuration file to give the user permission to use it:
-
+```bash
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```
 
-Alternatively, if you are the root user, you can run:
-
+اگر یوزر روت بودی:
+```bash
 export KUBECONFIG=/etc/kubernetes/admin.conf
-
+```
 5️⃣ نصب Flannel 🌐
 
-Flannel is a simple and easy way to configure a layer 3 network fabric designed for Kubernetes.
-🔹 Deploy Flannel with kubectl:
+  یک روش ساده و راحت برای پیکربندی یک شبکه در لایه ۳ (Layer 3) است که برای کلاستر Kubernetes طراحی شده.
 
+🔸 یعنی چی؟ Flannel کمک می‌کنه نودها و پادها بتونن توی کلاستر با همدیگه ارتباط شبکه‌ای داشته باشن، مخصوصاً وقتی از CNI (Container Network Interface) استفاده می‌کنی.
+
+🔧 دستور نصب Flannel:
+```bash
 kubectl apply -f https://github.com/coreos/flannel/raw/master/Documentation/kube-flannel.yml
+```
 
-⚠️ Warning:
+⚠️ هشدار مهم:
 
-If you use a custom podCIDR (not 10.244.0.0/16), you first need to download the above manifest and modify the network to match your configuration.
-For example, if your custom podCIDR is 192.168.0.0/16, modify the network configuration in the downloaded manifest to match this range.
+اگر از یک podCIDR سفارشی استفاده می‌کنی (غیر از 10.244.0.0/16)، باید فایل بالا رو اول دانلود کنی و بعد داخلش مقدار شبکه رو مطابق با podCIDR خودت تغییر بدی.
 
+یعنی چی؟ مثلاً اگه موقع kubeadm init این CIDR رو دادی:
+```bash
+--pod-network-cidr=192.168.0.0/16
+```
+ولی Flannel به صورت پیش‌فرض برای 10.244.0.0/16 تنظیم شده، پس باید فایل kube-flannel.yml رو دستی بگیری و تغییرش بدی
+
+💡 روش درست:
+
+   دانلود فایل:
+```bash
+curl -O https://github.com/coreos/flannel/raw/master/Documentation/kube-flannel.yml
+```
+
+   باز کردن فایل با ویرایشگر:
+```bash
+vim kube-flannel.yml
+```
+   پیدا کردن این بخش:
+```
+net-conf.json: |
+  {
+    "Network": "10.244.0.0/16",
+    "Backend": {
+      "Type": "vxlan"
+    }
+  }
+```
+🔁 و تغییرش به چیزی مثل:
+```
+net-conf.json: |
+  {
+    "Network": "192.168.0.0/16",
+    "Backend": {
+      "Type": "vxlan"
+    }
+  }
+```
+
+   حالا نصب:
+```bash
+kubectl apply -f kube-flannel.yml
+```
 6️⃣ فعال‌سازی تکمیل خودکار kubectl
 BASH:
 ```bash
@@ -185,32 +279,41 @@ echo 'kubectl completion fish | source' > ~/.config/fish/completions/kubectl.fis
 ```
 
 7️⃣ اضافه کردن Worker به کلاستر 🤝
-🔹 Run the kubeadm join command on each worker node to connect it to the control plane (master node):
 
+🔹روی هر نود Worker باید دستور kubeadm join رو اجرا کنی تا این نود به کنترل پلین (همون مستر) متصل بشه.
+```bash
 sudo kubeadm join [master-node-ip]:8443 --token [token] \
              --discovery-token-ca-cert-hash sha256:[hash]
+```
 
-🚀 Deploying a Kubernetes Worker Node: Step-by-Step Guide
+🚀 راهنمای مرحله‌به‌مرحله اضافه کردن نود Worker:
+✅ پیش‌نیازها:
+🛑 غیرفعال کردن Swap
+🌉 فعال‌سازی IPv4 Forwarding و Bridge Networking
+🐳 نصب Containerd (به‌عنوان runtime)
+🛠️ 🛠️ نصب ابزارهای کوبرنتیز (kubeadm, kubelet, kubectl)
+🔗 اجرای دستور kubeadm join برای پیوستن به کلاستر
+✅ بررسی اضافه شدن نود Worker
+🌐 (اختیاری) ری‌بالانس CoreDNS اگر به‌هم ریخته شده بود
+🎉 تبریک! نود Worker شما به کلاستر Kubernetes متصل شده !
 
-    🚀 Prerequisites 🛠️
-    🛑 Disable Swap Memory
-    🌉 Set up the IPv4 Bridge Networking on All Nodes
-    🐳 Install Container Runtime (Containerd)
-    🛠️ Install Kubernetes Tools (kubeadm, kubelet, kubectl)
-    🤝 Join the Worker Node to the Cluster
-    ✅ Verify the Node Addition
-    🌐 (Optional) Rebalance CoreDNS Pods
-    🎉 Congratulations!
 
-💡 Hint: This guide provides a detailed, step-by-step explanation for setting up and configuring a Kubernetes worker node from scratch. 👉 Click the title above or here to access the full guide.
 
 8️⃣ تنظیم HAProxy 🚀
+
 📝 مقدمه
 
-HAProxy, which stands for High Availability Proxy, is a popular open-source software solution for TCP/HTTP load balancing and proxying. It can run on Linux, macOS, and FreeBSD. Its primary purpose is to improve the performance and reliability of a server environment by distributing workloads across multiple servers (e.g., web, application, or database servers).
+ که مخفف عبارت High Availability Proxy (پراکسی با در دسترس‌بودن بالا) است،
+یک نرم‌افزار متن‌باز و بسیار محبوب برای متوازن‌سازی بار (Load Balancing) و پراکسی کردن ترافیک‌های TCP/HTTP می‌باشد.
 
-HAProxy is widely used in high-profile environments, including GitHub, Imgur, Instagram, and Twitter. 🌐
-Installation ✔️
+این برنامه روی سیستم‌عامل‌های لینوکس، مک‌اواس و FreeBSD قابل اجراست.
+
+هدف اصلی HAProxy اینه که کارایی (Performance) و پایداری (Reliability) زیرساخت سرورها رو افزایش بده
+با پخش کردن بار کاری بین چندین سرور مثل سرورهای وب، اپلیکیشن یا دیتابیس.
+
+HAProxy به‌طور گسترده‌ای در محیط‌های مهم و شناخته‌شده استفاده می‌شود
+از جمله در شرکت‌ها و سرویس‌هایی مانند GitHub، Imgur، Instagram و Twitter. 🌐
+
 
 نصب HAProxy:
 ```bash
@@ -248,39 +351,61 @@ frontend stats
 ```
 
 Explanation of the Configuration File 📝
+
 1. Frontend for Kubernetes API
 
-    frontend k8s-api: Defines a frontend named k8s-api to handle incoming traffic.
-    bind *:8443: Binds the frontend to port 8443 on all available network interfaces. 🌐
-    mode tcp: Configures the frontend to operate in TCP mode (Layer 4), which is suitable for Kubernetes API traffic.
-    option tcplog: Enables detailed logging for TCP connections. 📝
-    default_backend k8s-api: Specifies that traffic received on this frontend should be forwarded to the k8s-api backend.
+    frontend k8s-api: تعریف یک frontend به‌نام k8s-api برای دریافت ترافیک ورودی.
+   
+    bind *:8443:اتصال frontend به پورت 8443 روی همه‌ی اینترفیس‌های شبکه‌ی سرور.
+(یعنی هر ترافیکی که بیاد روی پورت 8443، وارد این بخش میشه)
+    mode tcp:  این frontend در مد TCP (لایه 4 شبکه) کار می‌کنه. برای ارتباط با Kubernetes API که روی TCP هست، مناسبه
 
-2. Backend for Kubernetes API
+    option tcplog:  فعال کردن لاگ‌برداری دقیق برای ارتباطات TCP.
+   
+    default_backend k8s-api:  مشخص می‌کنه که همه‌ی ترافیک‌های دریافتی این frontend باید به backend به‌نام k8s-api ارسال بشن.
 
-    backend k8s-api: Defines a backend named k8s-api to handle traffic forwarded from the frontend.
-    mode tcp: Configures the backend to operate in TCP mode.
-    option tcplog: Enables detailed logging for TCP connections.
-    option tcp-check: Enables health checks for backend servers using TCP. ✅
-    balance roundrobin: Distributes traffic evenly across all available servers in a round-robin fashion. 🔄
-    default-server: Sets default parameters for all servers in this backend:
-        inter 10s: Interval between health checks is 10 seconds.
-        downinter 5s: Interval between health checks for servers marked as down is 5 seconds.
-        rise 2: A server is marked as healthy after 2 consecutive successful health checks.
-        fall 2: A server is marked as unhealthy after 2 consecutive failed health checks.
-        slowstart 60s: Gradually increases the server's weight over 60 seconds after it becomes healthy.
-        maxconn 250: Limits the maximum number of concurrent connections to 250 per server.
-        maxqueue 256: Limits the maximum number of queued connections to 256 per server.
-        weight 100: Assigns a weight of 100 to the server for load balancing.
-    server k8s-api-1 192.168.168.51:6443 check: Defines a backend server named k8s-api-1 with the IP address 192.168.168.51 and port 6443. The check option enables health checks for this server.
+3. Backend for Kubernetes API
 
-3. Monitoring HAProxy
+    backend k8s-api: تعریف یک backend به‌نام k8s-api که ترافیک دریافتی از frontend رو هندل می‌کنه.
+   
+    mode tcp: این backend هم در مد TCP کار می‌کنه.
+   
+    option tcplog: فعال‌سازی لاگ‌برداری TCP برای backend.
+   
+    option tcp-check: فعال‌سازی بررسی سلامت سرورها با ارسال TCP Ping. (health check)
+   
+    balance roundrobin: بار ترافیکی رو به‌صورت چرخشی (Round Robin) بین سرورها توزیع می‌کنه
+   
+    default-server: تنظیمات پیش‌فرض برای همه‌ی سرورها:
+   
+        inter 10s: هر ۱۰ ثانیه یک‌بار، health check ارسال می‌شه.
+   
+        downinter 5s:  اگر سرور down بود، health check هر ۵ ثانیه ارسال می‌شه (برای بررسی برگشت به حالت سالم).
+   
+        rise 2: سرور بعد از ۲ بررسی موفق پشت‌سر‌هم به حالت سالم (healthy) میره.
+   
+        fall 2: سرور بعد از ۲ بار شکست پشت‌سر‌هم به حالت ناسالم (unhealthy) میره.
+   
+        slowstart 60s: بعد از سالم شدن سرور، طی ۶۰ ثانیه به‌آرومی وزنش افزایش پیدا می‌کنه (برای جلوگیری از overload ناگهانی).
+   
+        maxconn 250: حداکثر ۲۵۰ ارتباط همزمان به هر سرور اجازه داده میشه.
+   
+        maxqueue 256:اگر سرور پر بود، حداکثر ۲۵۶ درخواست در صف انتظار می‌مونه.
+   
+        weight 100: وزن سرور ۱۰۰ هست، برای کنترل نسبت بار ترافیکی (موقع load balancing).
+   
+     معرفی سرور backend به‌نام k8s-api-1 با آی‌پی 192.168.168.51 که روی پورت 6443 گوش میده و health check براش فعاله.
 
-    frontend stats: Defines a frontend named stats for monitoring HAProxy. 📊
-    bind *:8404: Binds the monitoring interface to port 8404 on all available network interfaces.
-    stats enable: Enables the HAProxy statistics module.
-    stats uri /stats: Specifies the URI path (/stats) for accessing the statistics page.
-    stats refresh 10: Refreshes the statistics page every 10 seconds. 🔄
+مانیتورینگ HAProxy
+    frontend stats: تعریف یک frontend جدید به‌نام stats برای دسترسی به پنل مانیتورینگ HAProxy.
+    
+    bind *:8404:  پنل مانیتورینگ روی پورت 8404 در همه‌ی اینترفیس‌های شبکه در دسترسه.
+    
+    stats enable: فعال‌سازی ماژول آماری HAProxy.
+    
+    stats uri /stats:  آدرس دسترسی به پنل آمار رو روی http://<ip>:8404/stats قرار می‌ده.
+    
+    stats refresh 10: هر ۱۰ ثانیه، آمار به‌روز میشه (auto-refresh).
 
 9️⃣ پیکربندی آدرس API Server
 
