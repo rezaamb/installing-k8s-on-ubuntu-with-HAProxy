@@ -1,42 +1,43 @@
-# 🚀 Step-by-Step Guide to Deploying a Kubernetes Cluster on Ubuntu with HAProxy
+# 🚀🚀 راهنمای گام‌به‌گام برای استقرار یک خوشه Kubernetes روی Ubuntu با HAProxy
 
-Welcome to the guide for setting up a Kubernetes cluster with an HAProxy load balancer! This document will walk you through the steps to configure HAProxy and ensure proper resolution of the API server address.
+به راهنما برای راه‌اندازی یک خوشه Kubernetes با HAProxy خوش‌اومدی! این سند شما رو گام به گام راهنمایی می‌کنه تا HAProxy رو تنظیم کرده و آدرس API server رو درست به‌کار بگیری.
 ```Tested on Ubuntu 20.04, 22.04 and 24.04 ✅```
 
-This guide has been successfully tested on Ubuntu 20.04, Ubuntu 22.04 and Ubuntu 24.04, ensuring compatibility and smooth execution of all steps.
-📝 Introduction
+✅ این راهنما روی Ubuntu 20.04، 22.04 و 24.04 تست شده و همه مراحل با این نسخه‌ها سازگار هستند.
+📝 مقدمه
 
-Kubernetes is an open-source container orchestration system for automating software deployment, scaling, and management. Originally designed by Google, the project is now maintained by a worldwide community of contributors, and the trademark is held by the Cloud Native Computing Foundation.
-Let's proceed with the installation step by step ✔️
+ کوبرنتیز یک سیستم متن‌باز برای ارکستریشن کانتینر است که کارهای Deployment، مقیاس‌دهی و مدیریت برنامه‌ها رو اتوماتیک می‌کنه. این پروژه توسط گوگل شروع شد و حالا زیر نظر جامعه متن‌باز و Cloud Native Computing Foundation ادامه پیدا می‌کنه.
+بیاید مرحله به مرحله نصبش کنیم ✔️
 
-1️⃣ Disable Swap Memory 🛑
 
-Kubernetes schedules work based on the understanding of available resources. If workloads start using swap, it can become difficult for Kubernetes to make accurate scheduling decisions. Therefore, it’s recommended to disable swap before installing Kubernetes. Open the ```/etc/fstab``` file with a text editor. You can use nano, vim, or any other text editor you are comfortable with.
+1️⃣ غیرفعال‌سازی Swap Memory 🛑
 
-🔹 There are 2 ways to disable swap:
+ کوبرنتیز برای زمان‌بندی کارها، منابع سیستم (RAM واقعی) رو در نظر می‌گیره. اگر Swap فعال باشه، تصمیم‌گیری دقیق زمان‌بندی خراب می‌شه. بنابراین باید قبل از نصب Kubernetes، Swap رو خاموش کنیم. فایل /etc/fstab رو با ویرایشگر باز کن مثل nano یا vim.
 
-1.1. First way:
+🔹 2 روش برای غیرفعال سازی swap هست:
+
+1.1. روش اول:
 ```bash
 sudo swapoff -a
 sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 ```
-1.2. Second way:
+1.2. روش دوم:
 ```bash
 sudo vim /etc/fstab
 ```
-Look for the line that references the swap file. It will usually look something like this:
+داخل فایل خط مشابه زیر رو پیدا کن:
 
 /swapfile          none          swap          sw          0          0
 
-Delete this line, then reboot the system.
-💡 Note:
+و اون خط رو حذف کن، سپس سیستم رو reboot کن.
+💡 نکته:
 
-To allow kubelet to work properly, we need to disable swap on both machines (Master and Worker nodes).
+برای proper بودن kubelet، swap باید روی هر دو سرور Master و Worker خاموش بشه.
 
-2️⃣ Set up the IPv4 Bridge Networking on All Nodes 🌉
+2️⃣ تنظیم IPv4 Bridge Networking در تمام نودها 🌉
 
-To configure the IPv4 bridge on all nodes, execute the following commands on each node.
-🔹 Load the br_netfilter module required for networking:
+برای مشاهده ترافیک bridged در iptables، یک ماژول و تنظیم sysctl نیاز داریم.
+🔹 بارگذاری ماژول‌ها:
 ```bash
 cat <<EOF | sudo tee /etc/modules-load.d/containerd.conf
 overlay
@@ -45,8 +46,8 @@ EOF
 sudo modprobe overlay
 sudo modprobe br_netfilter
 ```
-To allow iptables to see bridged traffic, as required by Kubernetes, we need to set the values of certain fields to 1.
-🔹 Set sysctl parameters to allow iptables to see bridged traffic:
+این دو ماژول برای عملکرد صحیح networking کانتینرها الزامن.
+🔹 فعال‌سازی bridged traffic:
 ```bash
 cat <<EOF | sudo tee /etc/sysctl.d/kubernetes.conf
 net.bridge.bridge-nf-call-iptables = 1
@@ -54,37 +55,37 @@ net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward = 1
 EOF
 ```
-🔹 Apply sysctl parameters without reboot:
+🔹 بارگذاری تنظیمات بدون ریبوت:
 ```bash
 sudo sysctl --system
 ```
-3️⃣ Install Container Runtime (Containerd) 🐳
+3️⃣ نصب Container Runtime (Containerd) 🐳
 
 Kubernetes requires a container runtime to manage containers.
-🔹 Install containerd:
+🔹 نصب containerd:
 ```bash
 sudo apt install containerd -y
 ```
-🔹 Set up the default configuration file:
+🔹 تنظیم فایل کانفیگ:
 ```bash
 sudo mkdir -p /etc/containerd
 sudo containerd config default | sudo tee /etc/containerd/config.toml
 ```
-🔹 Modify the containerd configuration file:
+🔹 ویرایش فایل زیر:
 
 Edit the following file:
 ```bash
 sudo vim /etc/containerd/config.toml
 ```
-Search for the section in the file that starts with plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options and locate the SystemdCgroup setting. Change ```SystemdCgroup=false``` to ```true```:
+در بخش plugins... گزینه SystemdCgroup = false را به true تغییر بده:
 ```
 SystemdCgroup = true
 ```
-🔹 Restart containerd to apply changes:
+🔹 و برای اعمال تغییرات:
 ```bash
 sudo systemctl restart containerd
 ```
-4️⃣ Install Kubernetes Tools (kubeadm, kubelet, kubectl) 🛠️
+4️⃣ نصب ابزارهای Kubernetes (kubeadm, kubelet, kubectl) 🛠️
 ---
 Let’s install kubelet, kubeadm, and kubectl on each node to create a Kubernetes cluster. These components are essential for managing and operating a Kubernetes cluster.
 ---
@@ -96,7 +97,7 @@ Let’s install kubelet, kubeadm, and kubectl on each node to create a Kubernete
 ---
 ⚠️ These instructions are for Kubernetes v1.33.
 ---
-4.1. Update the apt package index and install dependencies:
+4.1 بروزرسانی لیست بسته‌ها:
 ```bash
 sudo apt-get update
 ```
@@ -104,7 +105,7 @@ sudo apt-get update
 ```bash
 sudo apt-get install -y apt-transport-https ca-certificates curl gpg
 ```
-4.2. Download the public signing key for Kubernetes:
+4.2 دریافت کلید امضای پکیج Kubernetes:
 
 # If the directory `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
 sudo mkdir -p -m 755 /etc/apt/keyrings
@@ -113,36 +114,33 @@ curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key | sudo gpg --
 💡 Note:
 
 In releases older than Debian 12 and Ubuntu 22.04, directory /etc/apt/keyrings does not exist by default, and it should be created before the curl command.
-4.3. Add the Kubernetes apt repository:
+4.3 افزودن مخزن Kubernetes:
 
 # This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
 echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
-4.4. Install kubelet, kubeadm, and kubectl:
-
+4.4 نصب ابزارها:
 sudo apt-get update
 sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 
-4.5. Enable the kubelet service:
-
+4.5 فعال‌سازی kubelet:
 sudo systemctl enable --now kubelet
 
 The kubelet is now restarting every few seconds, as it waits in a crashloop for kubeadm to tell it what to do.
-4.6. Enable the kubelet service so we can start it:
+4.6 فعال‌سازی kubelet:
 
 sudo systemctl enable kubelet
 
-4.7. Run the following command on the master node to allow Kubernetes to fetch the required images before cluster initialization:
+4.7. 4.7 پیش‌کشیدن ایمیج‌ها:
 
 sudo kubeadm config images pull
-
-4.8. Initialize the Cluster:
-💡 Important: Before initializing the cluster, you must configure HAProxy first. ❗️❗️❗️
+4.8 راه‌اندازی خوشه (روی Master):
+💡 ابتدا HAProxy باید تنظیم باشه! ❗️❗️❗️
 
 kubeadm init --control-plane-endpoint "apisrv.aranetco.ir:8443" --pod-network-cidr=10.244.0.0/16 --upload-certs
 
-⚠️ If the cluster doesn’t work, reset it with kubeadm:
+⚠️ اگر کلاستر کار نکرد برای ریست :
 
 sudo kubeadm reset --force
 
@@ -156,7 +154,7 @@ Alternatively, if you are the root user, you can run:
 
 export KUBECONFIG=/etc/kubernetes/admin.conf
 
-5️⃣ Install Flannel 🌐
+5️⃣ نصب Flannel 🌐
 
 Flannel is a simple and easy way to configure a layer 3 network fabric designed for Kubernetes.
 🔹 Deploy Flannel with kubectl:
@@ -167,24 +165,26 @@ kubectl apply -f https://github.com/coreos/flannel/raw/master/Documentation/kube
 
 If you use a custom podCIDR (not 10.244.0.0/16), you first need to download the above manifest and modify the network to match your configuration.
 For example, if your custom podCIDR is 192.168.0.0/16, modify the network configuration in the downloaded manifest to match this range.
-6️⃣ Kubectl Autocompletion ⌨️
-BASH:
 
+6️⃣ فعال‌سازی تکمیل خودکار kubectl
+BASH:
+```bash
 source <(kubectl completion bash)
 echo "source <(kubectl completion bash)" >> ~/.bashrc
-
+```
 ZSH:
-
+```bash
 source <(kubectl completion zsh)
 echo '[[ $commands[kubectl] ]] && source <(kubectl completion zsh)' >> ~/.zshrc
-
+```
 FISH:
 
 For FISH shell, ensure you are using kubectl version 1.23 or above. Then, run the following command:
-
+```bash
 echo 'kubectl completion fish | source' > ~/.config/fish/completions/kubectl.fish && source ~/.config/fish/completions/kubectl.fish
+```
 
-7️⃣ Join Worker Node to Cluster 🤝
+7️⃣ اضافه کردن Worker به کلاستر 🤝
 🔹 Run the kubeadm join command on each worker node to connect it to the control plane (master node):
 
 sudo kubeadm join [master-node-ip]:8443 --token [token] \
@@ -203,25 +203,26 @@ sudo kubeadm join [master-node-ip]:8443 --token [token] \
     🎉 Congratulations!
 
 💡 Hint: This guide provides a detailed, step-by-step explanation for setting up and configuring a Kubernetes worker node from scratch. 👉 Click the title above or here to access the full guide.
-8️⃣ HAProxy 🚀
-📝 Introduction
+
+8️⃣ تنظیم HAProxy 🚀
+📝 مقدمه
 
 HAProxy, which stands for High Availability Proxy, is a popular open-source software solution for TCP/HTTP load balancing and proxying. It can run on Linux, macOS, and FreeBSD. Its primary purpose is to improve the performance and reliability of a server environment by distributing workloads across multiple servers (e.g., web, application, or database servers).
 
 HAProxy is widely used in high-profile environments, including GitHub, Imgur, Instagram, and Twitter. 🌐
 Installation ✔️
 
-To install HAProxy on Ubuntu, use the following command:
-
+نصب HAProxy:
+```bash
 apt install haproxy
-
-Once installed, you can configure HAProxy by editing its configuration file:
-
+```
+ویرایش /etc/haproxy/haproxy.cfg:
+```bash
 vim /etc/haproxy/haproxy.cfg
-
+```
 Below is the full configuration for HAProxy:
 HAProxy Configuration File 🛠️
-
+```
 # Frontend for Kubernetes API
 frontend k8s-api
   bind *:8443
@@ -244,6 +245,7 @@ frontend stats
   stats enable
   stats uri /stats
   stats refresh 10
+```
 
 Explanation of the Configuration File 📝
 1. Frontend for Kubernetes API
@@ -280,10 +282,11 @@ Explanation of the Configuration File 📝
     stats uri /stats: Specifies the URI path (/stats) for accessing the statistics page.
     stats refresh 10: Refreshes the statistics page every 10 seconds. 🔄
 
-9️⃣ Configuring API Server Address ⚙️
+9️⃣ پیکربندی آدرس API Server
 
 When setting up your Kubernetes cluster, it is essential to ensure that the API server address is properly resolved by all machines in the cluster, including the master and worker nodes. This can be achieved in one of two ways:
-🌐 1. Using a DNS Server (Recommended)
+🌐 1. گزینه اول: DNS سرور (Recommended)
+یک رکورد A‌ بساز که آدرس دامنه‌ی API مثل api-server.example.com رو به IP سرور API نگاشت کنه.
 
 If you have a DNS server configured, you should add the API server's address to the DNS records. This allows all nodes and clients in the cluster to resolve the API server's domain name to its IP address automatically.
 
@@ -294,19 +297,19 @@ For example, you would create a DNS record that maps the API server's domain nam
     Centralized domain name resolution.
     Simplifies management, especially in larger or dynamic environments.
 
-🖥️ 2. Using the /etc/hosts File (When DNS is Not Available)
+🖥️ 2.گزینه دوم: فایل /etc/hosts
 
 If you do not have a DNS server, you must manually configure the API server's domain name resolution by adding an entry to the /etc/hosts file on all machines associated with the Kubernetes cluster, including the master and worker nodes.
 Steps to Configure /etc/hosts:
 
-Open the /etc/hosts file on each machine:
-
+روی هر نود خط زیر رو اضافه کن:
+```bash
 sudo vim /etc/hosts
-
+```
 Add the following line to map the API server's IP address to its domain name:
-
+```
 192.168.1.50 api-server.example.com
-
+```
         Replace 192.168.1.50 with the IP address of your API server.
         Replace api-server.example.com with the desired domain name.
 
@@ -320,9 +323,9 @@ When you are not using a DNS server, you must include the domain name and API ad
     DNS Server: Using a DNS server is the preferred method because it centralizes domain name resolution and simplifies management, especially in larger or dynamic environments.
     /etc/hosts File: This method is suitable for smaller setups or testing environments but requires manual updates on each machine if the API server's IP address changes.
 
-🎉 You're All Set!
+🎉 نتیجه‌گیری
+حالا HAProxy و API سرور با پورت 8443 تنظیم شدن، Kubernetes در مسیر راه‌اندازی هست، و آماده راه‌اندازی اولیه هستی 🚀
 
-Now that you've configured the API server address, you're ready to proceed with initializing your Kubernetes cluster and setting up HAProxy. 🚀
 🌟 Why Use Port 8443 for HAProxy Instead of 6443 for the Kubernetes API Server?
 
 When setting up a Kubernetes cluster with HAProxy as a load balancer, you may notice that the Kubernetes API server listens on port 6443 by default, but HAProxy is configured to listen on port 8443. This is a deliberate and important design choice. Here's why:
