@@ -42,8 +42,8 @@ sudo vim /etc/fstab
 
 برای proper بودن kubelet، swap باید روی هر دو سرور Master و Worker خاموش بشه.
 
-2️⃣# تنظیم IPv4 Bridge Networking در تمام نودها 🌉
 
+برای مشاهده ترافیک bridged در iptables، یک ماژول و تنظیم sysctl نیاز داریم.
 برای مشاهده ترافیک bridged در iptables، یک ماژول و تنظیم sysctl نیاز داریم.
 
 🔹 بارگذاری ماژول‌ها:
