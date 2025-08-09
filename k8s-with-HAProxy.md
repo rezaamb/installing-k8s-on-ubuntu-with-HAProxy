@@ -203,6 +203,7 @@ sudo kubeadm reset --force
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
+kubectl get nodes
 ```
 
 اگر یوزر روت بودی:
@@ -267,25 +268,28 @@ net-conf.json: |
 kubectl apply -f kube-flannel.yml
 ```
 
-hostname
+# hostname
 
 فرض کن می‌خوای هاپراکسی رو اسمش رو k8s-lb بذاری.
 
 روی همه نودها (و هاپراکسی):
-
-sudo hostnamectl set-hostname k8s-lb   # فقط روی هاپراکسی
-
+```
+hostnamectl set-hostname k8s-lb   # فقط روی هاپراکسی
+```
 ولی مهم‌تر اینه که در /etc/hosts روی همه نودها (Master + Workerها + HAProxy) اضافه کنی:
-
+```
 172.18.42.37  k8s-lb
-
+```
 حالا دستور init روی Master میشه:
-
+```
 kubeadm init \
   --control-plane-endpoint "k8s-lb:8443" \
   --pod-network-cidr=10.244.0.0/16 \
   --upload-certs
+```
+
 6️⃣# فعال‌سازی تکمیل خودکار kubectl
+
 BASH:
 ```bash
 source <(kubectl completion bash)
