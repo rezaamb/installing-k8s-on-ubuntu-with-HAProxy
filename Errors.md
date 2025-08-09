@@ -22,9 +22,13 @@
 
 ``` در kubeadm init گیر روی healthz و deadline```
 
-ارور: context deadline exceeded / unexpected EOF
+ارور: 
+``` context deadline exceeded / unexpected EOF  ```
+
 علت اصلی: درخواست‌های لوکال به LB از طریق HTTP(S)_PROXY می‌رفت.
+
 تشخیص: curl -k https://k8s-lb:8443/healthz → فقط با --noproxy یا بعد از تنظیم no_proxy جواب می‌داد.
+
 حل: تنظیم/پاک‌کردن پراکسی محیطی:
 ```
 export no_proxy=127.0.0.1,localhost,10.96.0.0/12,10.244.0.0/16,172.18.42.0/28,172.18.42.34,172.18.42.37,k8s-lb
@@ -33,8 +37,11 @@ unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 ```
 
 ``` در kubectl با admin.conf دسترسی نداشت```
+
 ارور: User "kubernetes-admin" cannot list nodes ...
+
 علت: نبودن ClusterRoleBinding برای گروه kubeadm:cluster-admins (روی این چرخه init).
+
 حل: ساخت CRB:
 ```
 apiVersion: rbac.authorization.k8s.io/v1
