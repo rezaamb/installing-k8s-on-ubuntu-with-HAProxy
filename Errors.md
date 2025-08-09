@@ -147,3 +147,59 @@ kubeadm join <k8s-lb:8443> --token <...> --discovery-token-ca-cert-hash <...>
 علت: فایل باینری نبود (فقط sha256 دانلود شده بود) یا mismatch مسیر/پراکسی.
 
 حل: نصب رسمی از ریپو pkgs.k8s.io (apt)، که انجام شد و نسخه 1.33.3 نصب شد.
+
+
+روی k8s-worker:
+
+  مطمئن شو آدرس‌های داخل‌کلاستر از پراکسی عبور نکنن:
+```
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
+export no_proxy="127.0.0.1,localhost,10.96.0.0/12,10.244.0.0/16,172.18.42.0/28,172.18.42.34,172.18.42.35,172.18.42.36,172.18.42.37,k8s-lb"
+export NO_PROXY="$no_proxy"
+```
+  اگر اینترنتت فقط با پراکسیه، همزمان ست کن (ولی NO_PROXY حتماً بالا باشه):
+```
+export http_proxy=<http://45.9.254.125:8080/>
+export https_proxy=<http://45.9.254.125:8080/>
+```
+  پایدارسازی پراکسی برای سرویس‌ها (توصیه‌شده):
+```
+mkdir -p /etc/systemd/system/{containerd.service.d,kubelet.service.d}
+```
+```
+vim /etc/systemd/system/containerd.service.d/http-proxy.conf
+```
+# محتوا:
+```
+[Service]
+Environment="HTTP_PROXY=<http://45.9.254.125:8080/>"
+Environment="HTTPS_PROXY=<http://45.9.254.125:8080/>"
+Environment="NO_PROXY=127.0.0.1,localhost,10.96.0.0/12,10.244.0.0/16,172.18.42.0/28,172.18.42.34,172.18.42.35,172.18.42.36,172.18.42.37,k8s-lb"
+```
+```
+vim /etc/systemd/system/kubelet.service.d/proxy.conf
+```
+# محتوا:
+```
+[Service]
+Environment="HTTP_PROXY=<http://45.9.254.125:8080/>"
+Environment="HTTPS_PROXY=<http://45.9.254.125:8080/>"
+Environment="NO_PROXY=127.0.0.1,localhost,10.96.0.0/12,10.244.0.0/16,172.18.42.0/28,172.18.42.34,172.18.42.35,172.18.42.36,172.18.42.37,k8s-lb"
+```
+```
+sudo systemctl daemon-reload
+sudo systemctl restart containerd
+sudo systemctl restart kubelet
+```
+  باینری‌های CNI رو نصب کن (خیلی مهم):
+```
+sudo apt-get update
+sudo apt-get install -y containernetworking-plugins
+ls -1 /opt/cni/bin | head   # باید bridge/host-local/loopback و ... رو ببینی
+```
+  وضعیت پاد Flannel روی worker01:
+```
+kubectl -n kube-flannel describe pod kube-flannel-ds-ltvh4
+kubectl -n kube-flannel logs kube-flannel-ds-ltvh4 -c install-cni-plugin --tail=200
+kubectl -n kube-flannel logs kube-flannel-ds-ltvh4 -c install-cni --tail=200
+```
