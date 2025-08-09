@@ -1,5 +1,3 @@
-مرور خطاها و راه‌حل‌ها
-
     ### مشکل HAProxy لاگ
 
     ارور/هشدار: option httplog not usable ... (needs 'mode http')
